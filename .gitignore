@@ -3,6 +3,14 @@ __pycache__/
 *.py[cod]
 *$py.class
 
+#training file
+*.pth
+log/
+
+# Mac System
+.DS_Store
+
+
 # C extensions
 *.so
 
