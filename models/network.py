@@ -1,11 +1,18 @@
 import torch.nn as nn
 import torch.nn.functional as F
 import torchvision.models as models
+import torch
+import numpy as np
 
-
+internal_device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
 #init model layer:Module
 def calc_coeff(iter_num, high=1.0, low=0.0, alpha=10.0, max_iter=10000.0):
     return np.float(2.0 * (high - low) / (1.0 + np.exp(-alpha*iter_num / max_iter)) - (high - low) + low)
+
+def grl_hook(coeff):
+    def fun1(grad):
+        return -coeff*grad.clone()
+    return fun1
 
 def init_weights(m):
     classname = m.__class__.__name__
@@ -57,7 +64,7 @@ class ResNetFc(nn.Module):
 
     def forward(self, x):
         x = self.feature_layers(x)
-        x = x.view(x.size(0), -1)
+        x = x.view(x.size(0), -1) #flat this layer to 2-D shape
         if self.use_bottleneck and self.new_cls:
             x = self.bottleneck(x)
         y = self.fc(x)
@@ -83,12 +90,12 @@ class AdversarialNetwork(nn.Module):
     def __init__(self, in_feature, hidden_size):
         super(AdversarialNetwork, self).__init__()
         self.ad_layer1 = nn.Linear(in_feature, hidden_size)
-        self.ad_layer2 = nn.Linear(hidden_size, hidden_size)
-        self.ad_layer3 = nn.Linear(hidden_size, 1)
         self.relu1 = nn.ReLU()
-        self.relu2 = nn.ReLU()
         self.dropout1 = nn.Dropout(0.5)
+        self.ad_layer2 = nn.Linear(hidden_size, hidden_size)
+        self.relu2 = nn.ReLU()
         self.dropout2 = nn.Dropout(0.5)
+        self.ad_layer3 = nn.Linear(hidden_size, 1)
         self.sigmoid = nn.Sigmoid()
         self.apply(init_weights)
         self.iter_num = 0
